@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#07080f" />
+  <meta name="description" content="Luiqi — рисуй в воздухе жестами руки через веб-камеру. Тренер подсказывает, какой палец поставить иначе." />
+  <title>Luiqi · Рисуй руками</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="stage" class="stage">
+    <video id="video" class="video" playsinline muted></video>
+    <canvas id="paint" class="layer"></canvas>
+    <canvas id="overlay" class="layer"></canvas>
+
+    <!-- Верхняя панель -->
+    <header class="topbar">
+      <div class="brand">Luiqi<span>.</span></div>
+      <div id="hud-center" class="hud-center" hidden>
+        <span id="hud-title" class="hud-title"></span>
+        <span id="hud-timer" class="hud-timer"></span>
+        <span id="hud-score" class="hud-score"></span>
+      </div>
+      <div class="topbar-right">
+        <div id="gesture-chip" class="gesture-chip" hidden><span class="chip-emoji">✋</span><span class="chip-text">—</span></div>
+        <button id="btn-sound" class="icon-btn" data-air title="Звук" aria-label="Звук">🔊</button>
+        <button id="btn-home" class="icon-btn" data-air title="В меню" aria-label="В меню" hidden>⌂</button>
+      </div>
+    </header>
+
+    <!-- Тренер: режим «ошибка» -->
+    <aside id="coach" class="coach" hidden aria-live="polite">
+      <div class="coach-label">Тренер</div>
+      <div class="coach-body">
+        <div class="coach-icon">👋</div>
+        <div>
+          <div class="coach-title">Покажи руку</div>
+          <div class="coach-fix">Я подскажу, если жест получится неточным</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Легенда жестов -->
+    <nav id="legend" class="legend" hidden></nav>
+
+    <!-- Панель инструментов свободного рисования -->
+    <div id="toolbar" class="toolbar" hidden>
+      <div id="palette" class="palette"></div>
+      <div id="sizes" class="sizes"></div>
+      <button class="tool-btn" data-air data-action="free-clear">🧹 Очистить</button>
+      <button class="tool-btn" data-air data-action="free-save">💾 Сохранить</button>
+    </div>
+
+    <!-- Подсказка на время раунда -->
+    <div id="round-banner" class="round-banner" hidden></div>
+    <div id="toast" class="toast" hidden></div>
+
+    <!-- ЭКРАНЫ -->
+    <section id="screen-welcome" class="screen active">
+      <div class="card hero">
+        <div class="kicker">Admit Hackathon · кейс Motion · рисование руками</div>
+        <h1>Рисуй <em>в воздухе</em></h1>
+        <p class="lead">Камера вместо мыши: рисуй указательным пальцем, стирай ладонью, сдавай рисунок жестом 👍. Встроенный тренер замечает неточные жесты и говорит, какой палец поставить иначе.</p>
+        <div class="gesture-grid" id="welcome-gestures"></div>
+        <button id="btn-start" class="btn primary big">Включить камеру и начать</button>
+        <p class="fine">Видео обрабатывается прямо в браузере и никуда не отправляется. После старта мышь не нужна: наведи палец ✌️ на кнопку и подержи.</p>
+      </div>
+    </section>
+
+    <section id="screen-loading" class="screen">
+      <div class="card center">
+        <div class="spinner"></div>
+        <p id="loading-text">Загрузка…</p>
+      </div>
+    </section>
+
+    <section id="screen-error" class="screen">
+      <div class="card center">
+        <div class="big-emoji">📷</div>
+        <h2 id="error-title">Нет доступа к камере</h2>
+        <p id="error-text"></p>
+        <button class="btn primary" data-action="retry">Попробовать снова</button>
+      </div>
+    </section>
+
+    <section id="screen-menu" class="screen">
+      <div class="menu">
+        <h2 class="menu-title">Что будем делать?</h2>
+        <p class="menu-sub">Наведи ✌️ или ☝️ на карточку и подержи — она нажмётся сама</p>
+        <div class="menu-grid">
+          <button class="menu-card" data-air data-action="tutorial"><span class="mc-emoji">🎓</span><span class="mc-title">Школа жестов</span><span class="mc-desc">6 жестов за минуту. Начни отсюда</span></button>
+          <button class="menu-card accent" data-air data-action="challenge"><span class="mc-emoji">🏆</span><span class="mc-title">Челлендж</span><span class="mc-desc">3 фигуры, таймер, очки и рекорды</span></button>
+          <button class="menu-card" data-air data-action="free"><span class="mc-emoji">🎨</span><span class="mc-title">Свободный холст</span><span class="mc-desc">Рисуй что хочешь и сохрани PNG</span></button>
+          <button class="menu-card" data-air data-action="leaderboard"><span class="mc-emoji">📊</span><span class="mc-title">Рекорды</span><span class="mc-desc">Таблица лидеров и твой прогресс</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-tutorial" class="screen passthrough">
+      <div class="card tutorial-card">
+        <div class="tut-step" id="tut-step">Шаг 1 из 6</div>
+        <div class="tut-emoji" id="tut-emoji">☝️</div>
+        <h2 id="tut-title">Указательный палец</h2>
+        <p id="tut-desc"></p>
+        <div class="progress"><div id="tut-progress" class="progress-fill"></div></div>
+        <div class="tut-dots" id="tut-dots"></div>
+      </div>
+      <button class="btn ghost corner" data-air data-action="menu">Пропустить</button>
+    </section>
+
+    <section id="screen-tutorial-done" class="screen">
+      <div class="card center">
+        <div class="big-emoji">🎉</div>
+        <h2>Ты знаешь все жесты!</h2>
+        <p>Тренер исправил <b id="tut-fixed">0</b> неточностей по пути. Теперь попробуй челлендж.</p>
+        <div class="row">
+          <button class="btn primary" data-air data-thumbs data-action="challenge">🏆 В челлендж</button>
+          <button class="btn" data-air data-action="free">🎨 Свободный холст</button>
+        </div>
+        <p class="fine">Или покажи 👍 и подержи</p>
+      </div>
+    </section>
+
+    <section id="screen-round-intro" class="screen passthrough">
+      <div class="card center intro-card">
+        <div class="kicker" id="intro-round">Раунд 1 из 3</div>
+        <div class="big-emoji" id="intro-emoji">⭕</div>
+        <h2 id="intro-name">Круг</h2>
+        <p id="intro-best" class="fine"></p>
+        <div id="intro-count" class="countdown">Подними руку ☝️ — начнём</div>
+      </div>
+    </section>
+
+    <section id="screen-round-result" class="screen">
+      <div class="card result-card">
+        <div class="kicker" id="rr-round">Раунд 1</div>
+        <div class="rr-top">
+          <img id="rr-thumb" class="thumb" alt="Твой рисунок" />
+          <div>
+            <div class="stars" id="rr-stars">★★★</div>
+            <div class="big-number"><span id="rr-acc">0</span>%</div>
+            <div class="fine">точность</div>
+            <div class="rr-points" id="rr-points"></div>
+            <div class="badge" id="rr-record" hidden>Новый личный рекорд!</div>
+          </div>
+        </div>
+        <h3>Что исправить</h3>
+        <ul id="rr-hints" class="hints"></ul>
+        <button class="btn primary" data-air data-thumbs data-action="next-round" id="rr-next">Дальше →</button>
+        <p class="fine">Наведи ✌️ на кнопку или покажи 👍 и подержи</p>
+      </div>
+    </section>
+
+    <section id="screen-results" class="screen">
+      <div class="card results-card">
+        <div class="kicker">Итоги челленджа</div>
+        <div class="results-head">
+          <div><div class="big-number" id="res-score">0</div><div class="fine">очков</div></div>
+          <div><div class="big-number small" id="res-acc">0%</div><div class="fine">средняя точность</div></div>
+          <div><div class="big-number small" id="res-place">—</div><div class="fine">место в рекордах</div></div>
+        </div>
+        <div class="gallery" id="res-gallery"></div>
+        <div class="res-cols">
+          <div>
+            <h3>Над чем поработать</h3>
+            <ul id="res-mistakes" class="hints"></ul>
+          </div>
+          <div>
+            <h3>Имя в таблице</h3>
+            <input id="res-name" class="name-input" maxlength="20" />
+            <p class="fine">Можно оставить случайное имя — клавиатура не обязательна.</p>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" data-air data-thumbs data-action="challenge">↻ Ещё раз</button>
+          <button class="btn" data-air data-action="save-postcard">💾 Сохранить открытку</button>
+          <button class="btn" data-air data-action="menu">⌂ Меню</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-leaderboard" class="screen">
+      <div class="card results-card">
+        <div class="kicker">Рекорды на этом устройстве</div>
+        <h2>Таблица лидеров</h2>
+        <table class="board"><thead><tr><th>#</th><th>Имя</th><th>Очки</th><th>Точность</th></tr></thead><tbody id="board-body"></tbody></table>
+        <h3>Лучшая точность по фигурам</h3>
+        <div id="board-shapes" class="shape-bests"></div>
+        <div class="row"><button class="btn primary" data-air data-thumbs data-action="menu">⌂ Меню</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="debug" class="debug" hidden></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

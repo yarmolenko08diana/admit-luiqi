@@ -1,0 +1,16 @@
+{
+  "name": "luiqi-air-drawing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Рисование жестами руки через веб-камеру (Admit Hackathon 2026, кейс Motion)",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server . -p 8080 -c-1",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "node tests/e2e/run.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
